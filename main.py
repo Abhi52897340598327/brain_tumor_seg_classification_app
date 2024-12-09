@@ -8,11 +8,11 @@ from tensorflow.keras.preprocessing.image import img_to_array
 # Load the models
 try:
     classification_model = load_model(
-        '/Users/abhiraamvenigalla/PycharmProjects/brain_tumor_seg_classification_app/brain_tumor_classification_model.keras',
+        'brain_tumor_classification_model.keras',
         safe_mode=False
     )
     segmentation_model = load_model(
-        '/Users/abhiraamvenigalla/PycharmProjects/brain_tumor_seg_classification_app/segmentation_unet_model.keras'
+        'segmentation_unet_model.keras'
     )
 except Exception as e:
     st.error(f"Error loading models: {e}")
