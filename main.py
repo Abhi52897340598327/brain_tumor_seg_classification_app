@@ -11,11 +11,11 @@ enable_unsafe_deserialization()
 # Load the models
 try:
     classification_model = load_model(
-        '/Users/abhiraamvenigalla/PycharmProjects/brain_tumor_seg_classification_app/brain_tumor_classification_model.keras',
+        'brain_tumor_classification_model.keras',
         safe_mode=False
     )
     segmentation_model = load_model(
-        '/Users/abhiraamvenigalla/PycharmProjects/brain_tumor_seg_classification_app/segmentation_unet_model.keras',
+        'segmentation_unet_model.keras',
         safe_mode=False
     )
 except Exception as e:
