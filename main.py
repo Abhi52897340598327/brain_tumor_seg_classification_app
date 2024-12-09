@@ -1,5 +1,7 @@
 import streamlit as st
 import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import *
 from tensorflow.keras.optimizers import Adam
 import numpy as np
 from PIL import Image
@@ -10,18 +12,21 @@ config_path = "classification/config.json"
 weights_path = "classification/model.weights.h5"
 
 # Load model configuration and weights
-def load_model_from_config_and_weights(config_path, weights_path):
+def rebuild_model_from_config_and_weights(config_path, weights_path):
     # Load the config
     with open(config_path, 'r') as f:
         config = json.load(f)
-    
-    # Convert config to JSON format and recreate the model
-    model_json = json.dumps(config['config'])
-    model = tf.keras.models.model_from_json(model_json)
-    
+
+    # Rebuild the model manually using the layers from config
+    model = Sequential()
+    for layer_config in config['config']['layers']:
+        layer_class = getattr(tf.keras.layers, layer_config['class_name'])
+        layer = layer_class.from_config(layer_config['config'])
+        model.add(layer)
+
     # Load weights
     model.load_weights(weights_path)
-    
+
     # Compile the model if compile_config exists
     if 'compile_config' in config:
         compile_config = config['compile_config']
@@ -34,7 +39,7 @@ def load_model_from_config_and_weights(config_path, weights_path):
 
 # Load the model
 try:
-    classification_model = load_model_from_config_and_weights(config_path, weights_path)
+    classification_model = rebuild_model_from_config_and_weights(config_path, weights_path)
     st.success("Classification model loaded successfully!")
 except Exception as e:
     st.error(f"Error loading the classification model: {e}")
