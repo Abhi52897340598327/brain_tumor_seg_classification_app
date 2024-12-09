@@ -6,8 +6,8 @@ from PIL import Image
 import json
 
 # Paths to the uploaded files
-config_path = "/classification/config.json"
-weights_path = "/classification/model.weights.h5"
+config_path = "classification/config.json"
+weights_path = "classification/model.weights.h5"
 
 # Load model configuration and weights
 def load_model_from_config_and_weights(config_path, weights_path):
