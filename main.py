@@ -1,6 +1,5 @@
 import streamlit as st
 import tensorflow as tf
-from tensorflow.keras.models import model_from_config
 from tensorflow.keras.optimizers import Adam
 import numpy as np
 from PIL import Image
@@ -16,8 +15,9 @@ def load_model_from_config_and_weights(config_path, weights_path):
     with open(config_path, 'r') as f:
         config = json.load(f)
     
-    # Recreate the model
-    model = tf.keras.models.model_from_config(config['config'])
+    # Convert config to JSON format and recreate the model
+    model_json = json.dumps(config['config'])
+    model = tf.keras.models.model_from_json(model_json)
     
     # Load weights
     model.load_weights(weights_path)
