@@ -40,7 +40,7 @@ def rebuild_model_from_config_and_weights(config_path, weights_path):
 # Load the model
 try:
     classification_model = rebuild_model_from_config_and_weights(config_path, weights_path)
-    st.success("Classification model loaded successfully!")
+    # st.success("Classification model loaded successfully!")
 except Exception as e:
     st.error(f"Error loading the classification model: {e}")
     st.stop()
