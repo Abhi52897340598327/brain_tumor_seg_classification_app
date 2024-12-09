@@ -1,9 +1,12 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import cv2
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
+from tensorflow.keras.config import enable_unsafe_deserialization
+
+# Enable unsafe deserialization
+enable_unsafe_deserialization()
 
 # Load the models
 try:
