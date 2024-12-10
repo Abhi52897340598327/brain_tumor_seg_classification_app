@@ -49,7 +49,7 @@ except Exception as e:
 class_labels = ["Glioma", "Meningioma", "Pituitary Tumor"]
 
 # Streamlit app
-st.title("Brain Tumor Classification")
+st.title("NeuroLens: Classification and Segmentation of Brain Tumors")
 st.markdown("""
 ### Welcome to the Brain Tumor Classification System
 This application is designed to assist in identifying the type of brain tumor based on MRI scans. Please provide the required details below and upload the MRI image to proceed.
