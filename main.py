@@ -12,8 +12,8 @@ import shutil
 # Paths to models and decompression directories
 classification_config_path = "classification/config.json"
 classification_weights_path = "classification/model.weights.h5"
-segmentation_zip_path = "segmentation/segmentation_model_compressed.zip"
-segmentation_extract_path = "segmentation/extracted/"
+segmentation_zip_path = "segmentation_model_compressed.zip"
+segmentation_extract_path = "segmentation"
 segmentation_config_path = os.path.join(segmentation_extract_path, 'segmentation_model_take_5_config.json')
 segmentation_weights_path = os.path.join(segmentation_extract_path, 'segmentation_model_take_5_weights.weights.h5')
 
