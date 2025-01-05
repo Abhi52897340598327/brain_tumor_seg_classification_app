@@ -2,139 +2,104 @@ import streamlit as st
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import *
+from tensorflow.keras.optimizers import Adam
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 import json
-import zipfile
-import os
 
-# Paths to models and decompression directories
-classification_config_path = "classification/config.json"
-classification_weights_path = "classification/model.weights.h5"
-segmentation_zip_path = "segmentation_model_compressed.zip"
-segmentation_extract_path = "segmentation"
-segmentation_config_path = os.path.join(segmentation_extract_path, 'segmentation_model_take_5_config.json')
-segmentation_weights_path = os.path.join(segmentation_extract_path, 'segmentation_model_take_5_weights.weights.h5')
+# Paths to the uploaded files
+config_path = "classification/config.json"
+weights_path = "classification/model.weights.h5"
 
-# Define placeholder custom layers (replace with actual implementations)
-class SpatialAttention(tf.keras.layers.Layer):
-    def call(self, inputs):
-        # Dummy implementation
-        return inputs
-
-class NormalizeLayer(tf.keras.layers.Layer):
-    def call(self, inputs):
-        # Dummy implementation
-        return inputs
-
-# Decompression Function
-def decompress_segmentation_model(zip_path, extract_path):
-    if not os.path.exists(extract_path):  # Only decompress if not already done
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_path)
-        st.success("Segmentation model decompressed successfully!")
-
-# Load Classification Model
-def rebuild_classification_model(config_path, weights_path):
+# Load model configuration and weights
+def rebuild_model_from_config_and_weights(config_path, weights_path):
+    # Load the config
     with open(config_path, 'r') as f:
         config = json.load(f)
+
+    # Rebuild the model manually using the layers from config
     model = Sequential()
     for layer_config in config['config']['layers']:
         layer_class = getattr(tf.keras.layers, layer_config['class_name'])
         layer = layer_class.from_config(layer_config['config'])
         model.add(layer)
+
+    # Load weights
     model.load_weights(weights_path)
+
+    # Compile the model if compile_config exists
+    if 'compile_config' in config:
+        compile_config = config['compile_config']
+        optimizer = tf.keras.optimizers.get(compile_config['optimizer'])
+        loss = compile_config['loss']
+        metrics = compile_config['metrics']
+        model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    
     return model
 
-# Load Segmentation Model
-def rebuild_segmentation_model(config_path, weights_path):
-    with open(config_path, 'r') as f:
-        config = json.load(f)
+# Load the model
+try:
+    classification_model = rebuild_model_from_config_and_weights(config_path, weights_path)
+    # st.success("Classification model loaded successfully!")
+except Exception as e:
+    st.error(f"Error loading the classification model: {e}")
+    st.stop()
 
-    input_shape = config['config']['layers'][0]['config']['batch_shape'][1:]  # Exclude batch size
-    inputs = tf.keras.Input(shape=input_shape)
-    x = inputs
-    layer_outputs = {}
+# Class labels
+class_labels = ["Glioma", "Meningioma", "Pituitary Tumor"]
 
-    # Define custom objects
-    custom_objects = {
-        'SpatialAttention': SpatialAttention,
-        'NormalizeLayer': NormalizeLayer
-    }
+# Streamlit app
+st.title("NeuroLens: Classification and Segmentation of Brain Tumors")
+st.markdown("""
+### Welcome to the Brain Tumor Classification System
+This application is designed to assist in identifying the type of brain tumor based on MRI scans. Please provide the required details below and upload the MRI image to proceed.
 
-    for idx, layer_config in enumerate(config['config']['layers']):
-        layer_class_name = layer_config['class_name']
-        layer_class = getattr(tf.keras.layers, layer_class_name, custom_objects.get(layer_class_name))
-        if not layer_class:
-            raise ValueError(f"Layer class {layer_class_name} not found in tf.keras.layers or custom_objects.")
-        layer = layer_class.from_config(layer_config['config'])
+**All rights reserved by Team AiMinds.**
+""")
 
-        if isinstance(layer, tf.keras.layers.InputLayer):
-            layer_outputs[idx] = x
-            continue
+# Collect patient details
+st.sidebar.header("Patient Information")
+with st.sidebar.form("patient_form"):
+    name = st.text_input("Full Name")
+    age = st.number_input("Age", min_value=1, max_value=120, step=1)
+    address = st.text_area("Address")
+    gender = st.selectbox("Gender", ["Male", "Female", "Other"])
+    phone_number = st.text_input("Phone Number")
+    email = st.text_input("Email Address")
+    submit_button = st.form_submit_button("Submit")
 
-        elif isinstance(layer, tf.keras.layers.Concatenate):
-            inbound_nodes = layer_config.get('inbound_nodes', [])
-            if not inbound_nodes or not isinstance(inbound_nodes, list):
-                raise ValueError(f"Concatenate layer requires valid 'inbound_nodes'. Found: {inbound_nodes}")
+if submit_button:
+    st.sidebar.write(f"**Name:** {name}")
+    st.sidebar.write(f"**Age:** {age}")
+    st.sidebar.write(f"**Gender:** {gender}")
+    st.sidebar.write(f"**Phone:** {phone_number}")
+    st.sidebar.write(f"**Email:** {email}")
 
-            # Debugging: Log inbound_nodes structure
-            print(f"Layer index {idx}: Inbound nodes: {inbound_nodes}")
+# File uploader
+uploaded_file = st.file_uploader("Upload an MRI image", type=["png", "jpg", "jpeg"])
 
-            # Handle args from inbound_nodes
-            valid_inputs = []
-            for node in inbound_nodes:
-                args = node.get('args', [])
-                if isinstance(args, list):
-                    for input_item in args[0]:  # Each input item in args
-                        if isinstance(input_item, dict) and 'keras_history' in input_item.get('config', {}):
-                            keras_history = input_item['config']['keras_history']
-                            ref_layer_index = keras_history[1]  # Reference the layer index
-                            if ref_layer_index in layer_outputs:
-                                valid_inputs.append(layer_outputs[ref_layer_index])
-                            else:
-                                print(f"Missing output for layer index {ref_layer_index} in 'Concatenate' layer.")
+if uploaded_file:
+    try:
+        # Open the uploaded file as an image
+        image = Image.open(uploaded_file).convert("RGB")
+        st.image(image, caption="Uploaded MRI Image", use_column_width=True)
 
-            if not valid_inputs:
-                raise KeyError(
-                    f"No valid inputs for 'Concatenate' layer at index {idx}. "
-                    f"Inbound nodes: {inbound_nodes}. Available layer_outputs keys: {list(layer_outputs.keys())}"
-                )
-            x = layer(valid_inputs)
+        # Preprocess the image for the model
+        image = image.resize((128, 128))  # Resize to match model input
+        image_array = np.array(image) / 255.0  # Normalize
+        image_array = np.expand_dims(image_array, axis=0)  # Add batch dimension
 
-        else:
-            x = layer(x)
+        # Predict using the model
+        predictions = classification_model.predict(image_array)
+        predicted_class = class_labels[np.argmax(predictions)]
+        confidence = np.max(predictions) * 100
 
-        # Save the output of the current layer
-        layer_outputs[idx] = x
+        # Display results
+        st.subheader("Prediction")
+        st.write(f"Predicted Tumor Type: **{predicted_class}**")
+        st.write(f"Confidence: **{confidence:.2f}%**")
 
-    outputs = x
-    model = tf.keras.Model(inputs=inputs, outputs=outputs)
-    model.load_weights(weights_path)
-    return model
-
-
-
-
-
-# Main App
-def main():
-    st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Classification", "Segmentation"])
-
-    # Decompress the segmentation model
-    decompress_segmentation_model(segmentation_zip_path, segmentation_extract_path)
-
-    # Load models
-    classification_model = rebuild_classification_model(classification_config_path, classification_weights_path)
-    segmentation_model = rebuild_segmentation_model(segmentation_config_path, segmentation_weights_path)
-
-    if page == "Classification":
-        st.title("Classification Page")
-        st.write("Classification model loaded successfully!")
-    elif page == "Segmentation":
-        st.title("Segmentation Page")
-        st.write("Segmentation model loaded successfully!")
-
-if __name__ == "__main__":
-    main()
+    except UnidentifiedImageError:
+        st.error("The uploaded file is not a valid image. Please upload a PNG, JPG, or JPEG file.")
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
