@@ -39,10 +39,11 @@ def main():
         uploaded_file = st.file_uploader("Upload an image for classification", type=["png", "jpg", "jpeg"])
         if uploaded_file is not None:
             try:
-                image = Image.open(uploaded_file)
-                st.image(image, caption="Uploaded Image", use_column_width=True)
+                # Ensure the image has 3 channels (RGB)
+                image = Image.open(uploaded_file).convert("RGB")
+                st.image(image, caption="Uploaded Image", use_container_width=True)
                 # Preprocess the image
-                image_array = np.array(image.resize((128, 128))) / 255.0
+                image_array = np.array(image.resize((128, 128))) / 255.0  # Normalize
                 image_array = np.expand_dims(image_array, axis=0)  # Add batch dimension
                 # Predict
                 prediction = classification_model.predict(image_array)
@@ -56,14 +57,15 @@ def main():
         uploaded_file = st.file_uploader("Upload an image for segmentation", type=["png", "jpg", "jpeg"])
         if uploaded_file is not None:
             try:
-                image = Image.open(uploaded_file).convert("RGB")  # Ensure 3 channels (RGB)
-                st.image(image, caption="Uploaded Image", use_column_width=True)
+                # Ensure the image has 3 channels (RGB)
+                image = Image.open(uploaded_file).convert("RGB")
+                st.image(image, caption="Uploaded Image", use_container_width=True)
                 # Preprocess the image
                 image_array = np.array(image.resize((128, 128))) / 255.0  # Normalize
                 image_array = np.expand_dims(image_array, axis=0)  # Add batch dimension
                 # Predict
                 predicted_mask = segmentation_model.predict(image_array)
-                st.image(predicted_mask.squeeze(), caption="Predicted Mask", use_column_width=True, clamp=True, channels="GRAY")
+                st.image(predicted_mask.squeeze(), caption="Predicted Mask", use_container_width=True, clamp=True, channels="GRAY")
             except UnidentifiedImageError:
                 st.error("Error: Invalid image file!")
 
