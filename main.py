@@ -50,12 +50,13 @@ def rebuild_classification_model(config_path, weights_path):
 def rebuild_segmentation_model(config_path, weights_path):
     with open(config_path, 'r') as f:
         config = json.load(f)
+
     input_shape = config['config']['layers'][0]['config']['batch_shape'][1:]  # Exclude batch size
     inputs = tf.keras.Input(shape=input_shape)
     x = inputs
     layer_outputs = {}
 
-    # Define custom objects if needed
+    # Define custom objects
     custom_objects = {
         'SpatialAttention': SpatialAttention,
         'NormalizeLayer': NormalizeLayer
@@ -65,7 +66,7 @@ def rebuild_segmentation_model(config_path, weights_path):
         layer_class_name = layer_config['class_name']
         layer_class = getattr(tf.keras.layers, layer_class_name, custom_objects.get(layer_class_name))
         if not layer_class:
-            raise ValueError(f"Layer class {layer_class_name} not found. Ensure it is part of tf.keras.layers or custom_objects.")
+            raise ValueError(f"Layer class {layer_class_name} not found in tf.keras.layers or custom_objects.")
         layer = layer_class.from_config(layer_config['config'])
 
         if isinstance(layer, tf.keras.layers.InputLayer):
@@ -77,16 +78,17 @@ def rebuild_segmentation_model(config_path, weights_path):
             if not inbound_nodes or not isinstance(inbound_nodes, list):
                 raise ValueError(f"Concatenate layer requires valid 'inbound_nodes'. Found: {inbound_nodes}")
 
-            # Debugging: Print inbound nodes and current layer outputs
-            print(f"Layer index: {idx}, Inbound nodes: {inbound_nodes}")
-            print(f"Current layer_outputs keys: {layer_outputs.keys()}")
-
+            # Extract inputs for the Concatenate layer
             valid_inputs = []
-            for node_idx in inbound_nodes[0]:
-                if node_idx[0] in layer_outputs:
-                    valid_inputs.append(layer_outputs[node_idx[0]])
-                else:
-                    print(f"Skipping invalid node index: {node_idx[0]} in 'Concatenate' layer at index {idx}.")
+            for node in inbound_nodes[0]:  # Iterate over referenced inputs
+                keras_history = node.get('config', {}).get('keras_history')
+                if keras_history:
+                    ref_layer_name = keras_history[0]  # Layer name
+                    ref_layer_index = keras_history[1]  # Layer index
+                    if ref_layer_index in layer_outputs:
+                        valid_inputs.append(layer_outputs[ref_layer_index])
+                    else:
+                        print(f"Missing output for layer index {ref_layer_index} referenced by {ref_layer_name}")
 
             if not valid_inputs:
                 raise KeyError(
@@ -98,13 +100,14 @@ def rebuild_segmentation_model(config_path, weights_path):
         else:
             x = layer(x)
 
-        # Save the output for the current layer
+        # Save the output of the current layer
         layer_outputs[idx] = x
 
     outputs = x
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
     model.load_weights(weights_path)
     return model
+
 
 
 # Main App
