@@ -78,29 +78,22 @@ def rebuild_segmentation_model(config_path, weights_path):
             if not inbound_nodes or not isinstance(inbound_nodes, list):
                 raise ValueError(f"Concatenate layer requires valid 'inbound_nodes'. Found: {inbound_nodes}")
 
-            # Debugging: Print inbound_nodes structure
+            # Debugging: Log inbound_nodes structure
             print(f"Layer index {idx}: Inbound nodes: {inbound_nodes}")
 
-            # Extract inputs for the Concatenate layer
+            # Handle args from inbound_nodes
             valid_inputs = []
-            for node in inbound_nodes[0]:
-                # Check if the node is a dictionary or a string
-                if isinstance(node, dict):
-                    keras_history = node.get('config', {}).get('keras_history')
-                    if keras_history:
-                        ref_layer_index = keras_history[1]  # Layer index
-                        if ref_layer_index in layer_outputs:
-                            valid_inputs.append(layer_outputs[ref_layer_index])
-                        else:
-                            print(f"Missing output for layer index {ref_layer_index} in 'Concatenate' layer.")
-                elif isinstance(node, list) and len(node) > 0:
-                    ref_layer_index = node[0]  # Assume node[0] references the output
-                    if ref_layer_index in layer_outputs:
-                        valid_inputs.append(layer_outputs[ref_layer_index])
-                    else:
-                        print(f"Missing output for referenced index {ref_layer_index}.")
-                else:
-                    print(f"Unhandled node structure: {node}")
+            for node in inbound_nodes:
+                args = node.get('args', [])
+                if isinstance(args, list):
+                    for input_item in args[0]:  # Each input item in args
+                        if isinstance(input_item, dict) and 'keras_history' in input_item.get('config', {}):
+                            keras_history = input_item['config']['keras_history']
+                            ref_layer_index = keras_history[1]  # Reference the layer index
+                            if ref_layer_index in layer_outputs:
+                                valid_inputs.append(layer_outputs[ref_layer_index])
+                            else:
+                                print(f"Missing output for layer index {ref_layer_index} in 'Concatenate' layer.")
 
             if not valid_inputs:
                 raise KeyError(
@@ -119,6 +112,7 @@ def rebuild_segmentation_model(config_path, weights_path):
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
     model.load_weights(weights_path)
     return model
+
 
 
 
