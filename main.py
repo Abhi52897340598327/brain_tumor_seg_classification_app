@@ -81,15 +81,19 @@ def rebuild_segmentation_model(config_path, weights_path):
             print(f"Layer index: {idx}, Inbound nodes: {inbound_nodes}")
             print(f"Current layer_outputs keys: {layer_outputs.keys()}")
 
-            try:
-                # Retrieve the inputs for the Concatenate layer
-                inputs_to_concat = [layer_outputs[node_idx[0]] for node_idx in inbound_nodes[0]]
-                x = layer(inputs_to_concat)
-            except KeyError as e:
+            valid_inputs = []
+            for node_idx in inbound_nodes[0]:
+                if node_idx[0] in layer_outputs:
+                    valid_inputs.append(layer_outputs[node_idx[0]])
+                else:
+                    print(f"Skipping invalid node index: {node_idx[0]} in 'Concatenate' layer at index {idx}.")
+
+            if not valid_inputs:
                 raise KeyError(
-                    f"KeyError in 'Concatenate' layer at index {idx}. "
-                    f"Node indices: {inbound_nodes}. Available layer_outputs keys: {list(layer_outputs.keys())}"
-                ) from e
+                    f"No valid inputs for 'Concatenate' layer at index {idx}. "
+                    f"Inbound nodes: {inbound_nodes}. Available layer_outputs keys: {list(layer_outputs.keys())}"
+                )
+            x = layer(valid_inputs)
 
         else:
             x = layer(x)
