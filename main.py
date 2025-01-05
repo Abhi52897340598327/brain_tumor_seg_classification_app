@@ -1,14 +1,12 @@
 import streamlit as st
 import tensorflow as tf
-from tensorflow.keras.models import Sequential, model_from_json
+from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import *
 import numpy as np
-from custom_layers import SpatialAttention, NormalizeLayer
 from PIL import Image, UnidentifiedImageError
 import json
 import zipfile
 import os
-import shutil
 
 # Paths to models and decompression directories
 classification_config_path = "classification/config.json"
@@ -17,6 +15,17 @@ segmentation_zip_path = "segmentation_model_compressed.zip"
 segmentation_extract_path = "segmentation"
 segmentation_config_path = os.path.join(segmentation_extract_path, 'segmentation_model_take_5_config.json')
 segmentation_weights_path = os.path.join(segmentation_extract_path, 'segmentation_model_take_5_weights.weights.h5')
+
+# Define placeholder custom layers (replace with actual implementations)
+class SpatialAttention(tf.keras.layers.Layer):
+    def call(self, inputs):
+        # Dummy implementation
+        return inputs
+
+class NormalizeLayer(tf.keras.layers.Layer):
+    def call(self, inputs):
+        # Dummy implementation
+        return inputs
 
 # Decompression Function
 def decompress_segmentation_model(zip_path, extract_path):
@@ -48,13 +57,12 @@ def rebuild_segmentation_model(config_path, weights_path):
 
     # Define custom objects if needed
     custom_objects = {
-        'SpatialAttention': SpatialAttention,  # Replace with your custom implementation
-        'NormalizeLayer': NormalizeLayer  # Replace with your custom implementation
+        'SpatialAttention': SpatialAttention,
+        'NormalizeLayer': NormalizeLayer
     }
 
     for idx, layer_config in enumerate(config['config']['layers']):
         layer_class_name = layer_config['class_name']
-        # Check if layer class exists in tf.keras.layers or in custom_objects
         layer_class = getattr(tf.keras.layers, layer_class_name, custom_objects.get(layer_class_name))
         if not layer_class:
             raise ValueError(f"Layer class {layer_class_name} not found. Ensure it is part of tf.keras.layers or custom_objects.")
@@ -74,72 +82,22 @@ def rebuild_segmentation_model(config_path, weights_path):
     model.load_weights(weights_path)
     return model
 
-# Prediction Functions
-def classify_image(image, classification_model):
-    image = image.resize((128, 128))
-    image_array = np.array(image) / 255.0
-    image_array = np.expand_dims(image_array, axis=0)
-    predictions = classification_model.predict(image_array)
-    return predictions
-
-def segment_image(image, segmentation_model):
-    image = image.resize((128, 128))
-    image_array = np.array(image) / 255.0
-    image_array = np.expand_dims(image_array, axis=0)
-    prediction = segmentation_model.predict(image_array)
-    prediction = np.squeeze(prediction)
-    return prediction
-
-# App Pages
-def classification_page(classification_model):
-    st.title("Brain Tumor Classification")
-    uploaded_file = st.file_uploader("Upload an MRI image for classification", type=["png", "jpg", "jpeg"])
-    if uploaded_file:
-        try:
-            image = Image.open(uploaded_file).convert("RGB")
-            st.image(image, caption="Uploaded MRI Image", use_column_width=True)
-            predictions = classify_image(image, classification_model)
-            predicted_class = ["Glioma", "Meningioma", "Pituitary Tumor"][np.argmax(predictions)]
-            confidence = np.max(predictions) * 100
-            st.subheader("Prediction")
-            st.write(f"**Predicted Tumor Type:** {predicted_class}")
-            st.write(f"**Confidence:** {confidence:.2f}%")
-        except UnidentifiedImageError:
-            st.error("Invalid image file. Please upload a valid PNG, JPG, or JPEG file.")
-        except Exception as e:
-            st.error(f"Unexpected error: {e}")
-
-def segmentation_page(segmentation_model):
-    st.title("Brain Tumor Segmentation")
-    uploaded_file = st.file_uploader("Upload an MRI image for segmentation", type=["png", "jpg", "jpeg"])
-    if uploaded_file:
-        try:
-            image = Image.open(uploaded_file).convert("RGB")
-            st.image(image, caption="Uploaded MRI Image", use_column_width=True)
-            segmented_image = segment_image(image, segmentation_model)
-            st.subheader("Segmentation Result")
-            st.image(segmented_image, caption="Segmented Tumor Mask", use_column_width=True)
-        except UnidentifiedImageError:
-            st.error("Invalid image file. Please upload a valid PNG, JPG, or JPEG file.")
-        except Exception as e:
-            st.error(f"Unexpected error: {e}")
-
-# Main App Function
+# Main App
 def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.radio("Go to", ["Classification", "Segmentation"])
-    
+
     # Decompress the segmentation model
     decompress_segmentation_model(segmentation_zip_path, segmentation_extract_path)
-    
+
     # Load models
     classification_model = rebuild_classification_model(classification_config_path, classification_weights_path)
     segmentation_model = rebuild_segmentation_model(segmentation_config_path, segmentation_weights_path)
-    
+
     if page == "Classification":
-        classification_page(classification_model)
+        st.title("Classification Page")
     elif page == "Segmentation":
-        segmentation_page(segmentation_model)
+        st.title("Segmentation Page")
 
 if __name__ == "__main__":
     main()
