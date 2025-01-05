@@ -1,9 +1,11 @@
 import streamlit as st
 import tensorflow as tf
 from tensorflow.keras.models import load_model
+from tensorflow.keras.layers import Input, Dense, Flatten, Conv2D, MaxPooling2D, Dropout, BatchNormalization
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 import os
+import json
 
 # Paths to models
 classification_config_path = "classification/config.json"
@@ -12,13 +14,9 @@ segmentation_model_path = "small_segmentation_model.keras"  # Use the trained mo
 
 # Load Classification Model
 def rebuild_classification_model(config_path, weights_path):
-    import json
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import *
-
     with open(config_path, 'r') as f:
         config = json.load(f)
-    model = Sequential()
+    model = tf.keras.Sequential()
     for layer_config in config['config']['layers']:
         layer_class = getattr(tf.keras.layers, layer_config['class_name'])
         layer = layer_class.from_config(layer_config['config'])
