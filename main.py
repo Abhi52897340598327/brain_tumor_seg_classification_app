@@ -67,20 +67,33 @@ def rebuild_segmentation_model(config_path, weights_path):
         if not layer_class:
             raise ValueError(f"Layer class {layer_class_name} not found. Ensure it is part of tf.keras.layers or custom_objects.")
         layer = layer_class.from_config(layer_config['config'])
+
         if isinstance(layer, tf.keras.layers.InputLayer):
             layer_outputs[idx] = x
             continue
+
         elif isinstance(layer, tf.keras.layers.Concatenate):
             inbound_nodes = layer_config.get('inbound_nodes', [])
-            inputs_to_concat = [layer_outputs[node_idx[0]] for node_idx in inbound_nodes[0]]
-            x = layer(inputs_to_concat)
+            if not inbound_nodes or not isinstance(inbound_nodes, list):
+                raise ValueError(f"Concatenate layer requires valid 'inbound_nodes'. Found: {inbound_nodes}")
+
+            try:
+                # Retrieve the inputs for the Concatenate layer
+                inputs_to_concat = [layer_outputs[node_idx[0]] for node_idx in inbound_nodes[0]]
+                x = layer(inputs_to_concat)
+            except KeyError as e:
+                raise KeyError(f"KeyError in 'Concatenate' layer. Node indices: {inbound_nodes}. Layer outputs: {layer_outputs.keys()}") from e
+
         else:
             x = layer(x)
+
         layer_outputs[idx] = x
+
     outputs = x
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
     model.load_weights(weights_path)
     return model
+
 
 # Main App
 def main():
