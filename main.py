@@ -44,8 +44,19 @@ def rebuild_segmentation_model(config_path, weights_path):
     inputs = tf.keras.Input(shape=input_shape)
     x = inputs
     layer_outputs = {}
+
+    # Define custom objects if needed
+    custom_objects = {
+        'SpatialAttention': SpatialAttention,  # Replace with your custom implementation
+        'NormalizeLayer': NormalizeLayer  # Replace with your custom implementation
+    }
+
     for idx, layer_config in enumerate(config['config']['layers']):
-        layer_class = getattr(tf.keras.layers, layer_config['class_name'])
+        layer_class_name = layer_config['class_name']
+        # Check if layer class exists in tf.keras.layers or in custom_objects
+        layer_class = getattr(tf.keras.layers, layer_class_name, custom_objects.get(layer_class_name))
+        if not layer_class:
+            raise ValueError(f"Layer class {layer_class_name} not found. Ensure it is part of tf.keras.layers or custom_objects.")
         layer = layer_class.from_config(layer_config['config'])
         if isinstance(layer, tf.keras.layers.InputLayer):
             layer_outputs[idx] = x
