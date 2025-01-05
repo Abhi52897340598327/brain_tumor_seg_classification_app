@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential, model_from_json
 from tensorflow.keras.layers import *
 import numpy as np
+from custom_layers import SpatialAttention, NormalizeLayer
 from PIL import Image, UnidentifiedImageError
 import json
 import zipfile
